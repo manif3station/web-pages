@@ -6,66 +6,95 @@ use Dancer2 appname => 'Web';
 
 hook before_template_render => sub {
     my ($stash) = @_;
-    $stash->{page}{link} = sub { __PACKAGE__->link(@_) };
+    $stash->{Page}{link} = \&link;
 };
 
 has theme => ( is => 'ro' );
 
 my %pages;
 
+sub pages { \%pages }
+
 sub link {
-    my ( $class, $id, $attrs ) = @_;
+    my ( $id, $attrs ) = @_;
+
+    $id = [split /\./, $id]->[-1];
 
     my $page = $pages{$id} or die "Page '$id' is not defined";
 
-    $attrs->{alt} //= $page->{alt_text};
+    $DB::single=2 if !ref $attrs;
+    $attrs->{alt} //= $page->{alt};
 
     $attrs = join ' ',
       map { qq{$_="$attrs->{$_}"} } grep { defined $attrs->{$_} } keys %$attrs;
 
     $attrs = " $attrs" if $attrs;
 
-    sprintf '<a href="%s"%s>%s</a>', $page->{link}, $attrs, $page->{title};
+    sprintf '<a href="%s"%s>%s</a>', $page->{link}, $attrs, $page->{display};
 }
 
 sub add {
     my ( $self, $id, $config ) = @_;
 
-    $pages{$id} = $config;
+    $id = [split /\./, $id]->[-1];
 
-    my $suffix = $self->suffix // '';
+    my $page = $pages{$id} //= {};
 
-    my $link = $config->{link} // '';
+    $page->{alt} = $config->{alt} // $id;
 
-    my $title = $config->{title} // "\u$id";
+    $page->{link} = $config->{link} // "/$id";
 
-    my $template = $config->{template} // $id;
+    $page->{display} = $config->{display} // "\u$id";
 
-    my $theme = $self->theme // '';
+    $page->{title} = $config->{title} // "\u$id";
 
-    $template = "$theme/$template.tt" if $theme;
+    my $route = $config->{route} or return;
 
-    my $routes = $config->{routes} or die "Missing routes for '$id'";
+    my $method = $route->{method} // 'get';
 
-    foreach my $route (@$routes) {
-        my ( $method, $path, $before ) = @_;
+    my $path = $config->{route}{path} // $page->{link};
 
-        $method->(
-            $path => sub {
-                $before->() if $before;
+    my $code = $config->{code};
 
-                template $template => {
-                    page => {
-                        id    => $id,
-                        link  => vars->{page}{link} // $link,
-                        title => var->{page}{title} // $title,
-                    },
-                };
-            }
-        );
+    if ( $method eq 'get' && !$code ) {
+        if ( $page->{_final} ) {
+            die "'@$path' is finaled and can't be added anymore"
+        }
+
+        my $tt_file = $config->{template} // $id;
+
+        $tt_file .= '.tt';
+
+        my $theme = $config->{theme} // $self->theme // '';
+
+        $tt_file = "$theme/$tt_file" if $theme;
+
+        $code = sub {
+            template $tt_file => {
+                Page => {
+                    id      => $id,
+                    path    => vars->{page}{link}    // $page->{link},
+                    title   => vars->{page}{title}   // $page->{title},
+                    display => vars->{page}{display} // $page->{display},
+                },
+            };
+        };
+
+        $page->{_final} = 1;
     }
 
-    return $config;
+    die "$method '$path' is missing code" if !$code;
+
+    if ( UNIVERSAL::isa( $path, 'ARRAY' ) ) {
+        eval $method . ' $_ => $code for @$path';
+    }
+    else {
+        eval $method . ' $path => $code';
+    }
+
+    die "adding '$method $path' has an error: $@" if $@;
+
+    return ( $id, $config );
 }
 
 1;
