@@ -18,25 +18,28 @@ sub pages { \%pages }
 sub link {
     my ( $id, $attrs ) = @_;
 
-    $id = [split /\./, $id]->[-1];
+    $id = [ split /\./, $id ]->[-1];
 
     my $page = $pages{$id} or die "Page '$id' is not defined";
 
-    $DB::single=2 if !ref $attrs;
     $attrs->{alt} //= $page->{alt};
 
-    $attrs = join ' ',
-      map { qq{$_="$attrs->{$_}"} } grep { defined $attrs->{$_} } keys %$attrs;
+    my $attrstr = join ' ',
+      map { qq{$_="$attrs->{$_}"} }
+      grep { !/^_/ && defined $attrs->{$_} } keys %$attrs;
 
-    $attrs = " $attrs" if $attrs;
+    $attrstr = " $attrstr" if $attrstr;
 
-    sprintf '<a href="%s"%s>%s</a>', $page->{link}, $attrs, $page->{display};
+    my $tag = sprintf '<a href="%s"%s>', $page->{link}, $attrstr;
+    $tag .= $page->{display} if $attrs->{_display} // 1;
+    $tag .= '</a>'           if $attrs->{_endtag}  // 1;
+    return $tag;
 }
 
 sub add {
     my ( $self, $id, $config ) = @_;
 
-    $id = [split /\./, $id]->[-1];
+    $id = [ split /\./, $id ]->[-1];
 
     my $page = $pages{$id} //= {};
 
@@ -58,7 +61,7 @@ sub add {
 
     if ( $method eq 'get' && !$code ) {
         if ( $page->{_final} ) {
-            die "'@$path' is finaled and can't be added anymore"
+            die "'@$path' is finaled and can't be added anymore";
         }
 
         my $tt_file = $config->{template} // $id;
