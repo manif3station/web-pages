@@ -1,6 +1,7 @@
 package Web::Pages;
 
 use Moo;
+use TagAttrs;
 
 use Dancer2 appname => 'Web';
 
@@ -16,23 +17,19 @@ my %pages;
 sub pages { \%pages }
 
 sub link {
-    my ( $id, $attrs ) = @_;
+    my ($id, $options) = @_;
+
+    $options //= {};
 
     $id = [ split /\./, $id ]->[-1];
 
     my $page = $pages{$id} or die "Page '$id' is not defined";
 
-    $attrs->{alt} //= $page->{alt};
+    my ( $attrs, $args ) = attrs { alt => $page->{alt}, %$options };
 
-    my $attrstr = join ' ',
-      map { qq{$_="$attrs->{$_}"} }
-      grep { !/^_/ && defined $attrs->{$_} } keys %$attrs;
-
-    $attrstr = " $attrstr" if $attrstr;
-
-    my $tag = sprintf '<a href="%s"%s>', $page->{link}, $attrstr;
-    $tag .= $page->{display} if $attrs->{_display} // 1;
-    $tag .= '</a>'           if $attrs->{_endtag}  // 1;
+    my $tag = sprintf '<a href="%s"%s>', $page->{link}, $attrs;
+    $tag .= $page->{display} if $args->{display} // 1;
+    $tag .= '</a>'           if $args->{endtag}  // 1;
     return $tag;
 }
 
