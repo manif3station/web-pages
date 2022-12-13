@@ -54,11 +54,11 @@ sub add {
 
     my $path = $config->{route}{path} // $page->{link};
 
-    my $code = $config->{code};
+    my $code = $config->{route}{code};
 
     if ( $method eq 'get' && !$code ) {
         if ( $page->{_final} ) {
-            die "'@$path' is finaled and can't be added anymore";
+            die "$method '$page->{link}' is finaled and can't be added anymore";
         }
 
         my $tt_file = $config->{template} // $id;

@@ -20,8 +20,7 @@ my $next_position = 0;
 sub branch {
     my ($id) = @_ or return;
     return $id if ref $id;
-    my $branch = eval '\\tree()->' . join '', map { "{$_}" } split /\./,
-      $id;
+    my $branch = eval '\\tree()->' . join '', map {"{$_}"} split /\./, $id;
     die "Path: $id\nError: $@" if $@;
     return wantarray ? $branch : $$branch;
 }
@@ -31,8 +30,8 @@ sub add {
 
     my ($branch) = branch $id;
 
-    %{ $$branch ||= {} } =
-      ( id => $id, %$config, _position => $next_position++ );
+    %{ $$branch ||= {} }
+        = ( id => $id, %{ $config // {} }, _position => $next_position++ );
 
     return ( $id, $config );
 }
@@ -47,7 +46,7 @@ sub nav_pages {
     foreach my $id (
         sort { $branch->{$a}{_position} <=> $branch->{$b}{_position} }
         keys %$branch
-      )
+        )
     {
         next if $id eq '_postion' || $id eq '_children';
 
@@ -71,15 +70,15 @@ sub is_current_page {
     my $current_path = request->path;
     my $route        = $page->{route} or return;
 
-    my @path =
-      UNIVERSAL::isa( $route->{path}, 'ARRAY' )
-      ? @{ $route->{path} }
-      : ( $route->{path} );
+    my @path
+        = UNIVERSAL::isa( $route->{path}, 'ARRAY' )
+        ? @{ $route->{path} }
+        : ( $route->{path} );
 
     my @found = grep {
         UNIVERSAL::isa( $_, 'REGEXP' )
-          ? $current_path =~ m/$_/
-          : $current_path eq $_
+            ? $current_path =~ m/$_/
+            : $current_path eq $_
     } @path;
 
     return scalar @found;
