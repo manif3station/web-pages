@@ -48,6 +48,8 @@ sub add {
 
     $page->{title} = $config->{title} // "\u$id";
 
+    $page->{description} = $config->{description} // '';
+
     my $route = $config->{route} or return;
 
     my $method = $route->{method} // 'get';
@@ -76,6 +78,7 @@ sub add {
                     path    => vars->{page}{link}    // $page->{link},
                     title   => vars->{page}{title}   // $page->{title},
                     display => vars->{page}{display} // $page->{display},
+                    description => vars->{page}{description} // $page->{description},
                 },
             };
         };
